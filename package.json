@@ -21,6 +21,7 @@
   "dependencies": {
     "bluebird": "^2.10.0",
     "matrix-appservice": "^0.2.2",
+    "matrix-appservice-bridge": "^0.1.0",
     "uuid": "^2.0.1",
     "ws": "^0.8.0"
   },

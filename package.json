@@ -1,0 +1,26 @@
+{
+  "name": "matrix-appservice-verto",
+  "version": "0.1.0",
+  "description": "A Verto <--> Matrix bridge",
+  "main": "verto.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matrix-org/matrix-appservice-verto.git"
+  },
+  "keywords": [
+    "matrix-org",
+    "verto",
+    "voip"
+  ],
+  "author": "Matrix.org",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "bluebird": "^2.10.0",
+    "matrix-appservice": "^0.2.2",
+    "uuid": "^2.0.1",
+    "ws": "^0.8.0"
+  }
+}

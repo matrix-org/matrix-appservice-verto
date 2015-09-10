@@ -1,6 +1,9 @@
 # Logs
 logs
 *.log
+*.db
+config/config.yaml
+config/verto-registration.yaml
 
 # Runtime data
 pids

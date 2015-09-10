@@ -1,0 +1,25 @@
+homeserver:
+  url: http://localhost:8008
+  domain: localhost
+
+verto:
+  url: "ws://fs.localhost:8081/"
+  passwd: "somepassword"
+  
+verto-dialog-params:
+  # Keys set by the AS:
+  # callID, destination_number, remote_caller_id_number, caller_id_name
+  useVideo: true
+  useStereo: true
+  screenShare: false
+  useCamera: "any"
+  useMic: "any"
+  tag: "webcam"
+  localTag: null
+  login: "1008@fs.localhost"
+  caller_id_number: "1008"
+  outgoingBandwidth: "default"
+  incomingBandwidth: "default"
+  dedEnc: false
+  mirrorInput: false
+  remote_caller_id_name: "Outbound Call"

@@ -1,0 +1,52 @@
+type: object
+required: ["homeserver"]
+properties:
+  homeserver:
+    type: object
+    properties:
+      url:
+        type: string
+      domain:
+        type: string
+    additionalProperties: false
+    required: ["url", "domain"]
+  verto:
+    type: object
+    properties:
+      url:
+        type: string
+      passwd:
+        type: string
+    additionalProperties: false
+    required: ["url", "passwd"]
+  verto-dialog-params:
+    type: object
+    properties:
+      useVideo:
+        type: boolean
+      useStereo:
+        type: boolean
+      screenShare:
+        type: boolean
+      useCamera:
+        type: string
+      useMic:
+        type: string
+      tag:
+        type: string
+      localTag:
+        type: ["string", "null"]
+      login:
+        type: string
+      caller_id_number:
+        type: string
+      remote_caller_id_name:
+        type: string
+      outgoingBandwidth:
+        type: string
+      incomingBandwidth:
+        type: string
+      dedEnc:
+        type: boolean
+      mirrorInput:
+        type: boolean

@@ -21,7 +21,6 @@ var ROOM_STORE_FILE = "config/room-store.db";
 var USER_STORE_FILE = "config/user-store.db";
 var USER_PREFIX = "fs_";
 var EXTENSION_PREFIX = "35"; // the 'destination_number' to dial: 35xx
-var CANDIDATE_TIMEOUT_MS = 1000 * 3; // 3s
 
 var verto, bridgeInst;
 var calls = new CallStore(EXTENSION_PREFIX);

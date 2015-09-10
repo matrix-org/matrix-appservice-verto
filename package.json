@@ -4,6 +4,7 @@
   "description": "A Verto <--> Matrix bridge",
   "main": "verto.js",
   "scripts": {
+    "lint": "eslint lib/ app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -22,5 +23,8 @@
     "matrix-appservice": "^0.2.2",
     "uuid": "^2.0.1",
     "ws": "^0.8.0"
+  },
+  "devDependencies": {
+    "eslint": "^1.3.1"
   }
 }

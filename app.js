@@ -87,6 +87,7 @@ function runBridge(port, config) {
                     version: 0
                 });
                 calls.delete(callInfo.vertoCall, callInfo.matrixSide);
+                leaveIfNoMembers(callInfo.vertoCall);
                 break;
             default:
                 console.log("Unhandled method: %s", msg.method);
@@ -227,6 +228,7 @@ function handleEvent(request, context) {
             }
             promise = verto.sendBye(vertoCall, matrixSide);
             calls.delete(vertoCall, matrixSide);
+            leaveIfNoMembers(vertoCall);
             return promise;
         }
     }
@@ -303,8 +305,19 @@ function handleEvent(request, context) {
         }
         promise = verto.sendBye(vertoCall, matrixSide);
         calls.delete(vertoCall, matrixSide);
+        leaveIfNoMembers(vertoCall);
         return promise;
     }
+}
+
+function leaveIfNoMembers(vertoCall) {
+    if (vertoCall.getNumMatrixUsers() !== 0) {
+        return;
+    }
+    var intent = bridgeInst.getIntent(vertoCall.fsUserId);
+    intent.leave(getTargetRoomId(vertoCall.fsUserId)).catch(function(err) {
+        console.error("Failed to leave room: %s", err);
+    });
 }
 
 function generatePin() {

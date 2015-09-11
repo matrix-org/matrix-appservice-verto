@@ -21,6 +21,7 @@ var ROOM_STORE_FILE = "config/room-store.db";
 var USER_STORE_FILE = "config/user-store.db";
 var USER_PREFIX = "fs_";
 var EXTENSION_PREFIX = "35"; // the 'destination_number' to dial: 35xx
+var INVITE_TIMEOUT_MS = 1000 * 30; // ms to wait for an m.call.invite after a group invite
 
 var verto, bridgeInst;
 var calls = new CallStore(EXTENSION_PREFIX);
@@ -197,6 +198,7 @@ function handleEvent(request, context) {
                 var room = new MatrixRoom(event.room_id);
                 room.set("fs_user", context.targets.matrix.getId());
                 room.set("inviter", event.user_id);
+                startTimeoutForInvite(context.targets.matrix.getId());
                 return bridgeInst.getRoomStore().setMatrixRoom(room);
             });
         }
@@ -308,6 +310,18 @@ function handleEvent(request, context) {
         leaveIfNoMembers(vertoCall);
         return promise;
     }
+}
+
+function startTimeoutForInvite(fsUserId) {
+    setTimeout(function() {
+        var vertoCall = calls.fsUserToConf[fsUserId];
+        if (!vertoCall || vertoCall.getNumMatrixUsers() === 0) {
+            var intent = bridgeInst.getIntent(fsUserId);
+            intent.leave(getTargetRoomId(fsUserId)).catch(function(err) {
+                console.error("Failed to leave room: %s", err);
+            });
+        }
+    }, INVITE_TIMEOUT_MS);
 }
 
 function leaveIfNoMembers(vertoCall) {

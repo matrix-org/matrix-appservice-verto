@@ -5,7 +5,7 @@
 var Promise = require("bluebird");
 var uuid = require("uuid");
 
-var AppServiceRegistration = require("matrix-appservice").AppServiceRegistration;
+var AppServiceRegistration = require("matrix-appservice-bridge").AppServiceRegistration;
 var Cli = require("matrix-appservice-bridge").Cli;
 var Bridge = require("matrix-appservice-bridge").Bridge;
 var MatrixRoom = require("matrix-appservice-bridge").MatrixRoom;
@@ -368,15 +368,14 @@ var c = new Cli({
     bridgeConfig: {
         schema: CONFIG_SCHEMA_FILE
     },
-    generateRegistration: function(appServiceUrl, callback) {
-        var reg = new AppServiceRegistration(appServiceUrl);
+    generateRegistration: function(reg, callback) {
         reg.setHomeserverToken(AppServiceRegistration.generateToken());
         reg.setAppServiceToken(AppServiceRegistration.generateToken());
         reg.setSenderLocalpart("vertobot");
         reg.addRegexPattern("users", "@" + USER_PREFIX + ".*", true);
         console.log(
             "Generating registration to '%s' for the AS accessible from: %s",
-            REGISTRATION_FILE, appServiceUrl
+            REGISTRATION_FILE, reg.url
         );
         callback(reg);
     },

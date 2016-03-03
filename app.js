@@ -369,6 +369,7 @@ var c = new Cli({
         schema: CONFIG_SCHEMA_FILE
     },
     generateRegistration: function(reg, callback) {
+        reg.setId(AppServiceRegistration.generateToken());
         reg.setHomeserverToken(AppServiceRegistration.generateToken());
         reg.setAppServiceToken(AppServiceRegistration.generateToken());
         reg.setSenderLocalpart("vertobot");

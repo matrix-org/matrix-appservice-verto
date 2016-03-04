@@ -26,6 +26,9 @@ var INVITE_TIMEOUT_MS = 1000 * 30; // ms to wait for an m.call.invite after a gr
 var verto, bridgeInst;
 var calls = new CallStore(EXTENSION_PREFIX);
 
+// XXX: this should probably be handled by CallStore
+var prematureCandidatesForCall = {};
+
 function runBridge(port, config) {
     // Create a verto instance and login, then listen on the bridge.
     verto = new VertoEndpoint(config.verto.url, config["verto-dialog-params"],
@@ -268,17 +271,28 @@ function handleEvent(request, context) {
                     fsUserId, getExtensionToCall(fsUserId)
                 );
             }
+
+            var candidateEvents = prematureCandidatesForCall[event.content.call_id] || [];
+            var candidates = [];
+            candidateEvents.forEach(function(candidateEvent) {
+                candidateEvent.content.candidates.forEach(function(cand) {
+                    candidates.push(cand);
+                });
+            });
+            delete prematureCandidatesForCall[event.content.call_id];
+
             var callData = {
                 roomId: event.room_id,
                 mxUserId: event.user_id,
                 mxCallId: event.content.call_id,
                 vertoCallId: uuid.v4(),
                 offer: event.content.offer.sdp,
-                candidates: [],
+                candidates: candidates,
                 pin: generatePin(),
                 timer: null,
                 sentInvite: false
             };
+
             vertoCall.addMatrixSide(callData);
             calls.set(vertoCall);
             return verto.attemptInvite(vertoCall, callData, false);
@@ -290,7 +304,10 @@ function handleEvent(request, context) {
             event.room_id, event.user_id, JSON.stringify(event.content)
         );
         if (!matrixSide) {
-            return Promise.reject("Received candidates for unknown call");
+            prematureCandidatesForCall[event.content.call_id] =
+                prematureCandidatesForCall[event.content.call_id] || [];
+            prematureCandidatesForCall[event.content.call_id].push(event);
+            return Promise.reject("Received and queued candidates for unknown call");
         }
         event.content.candidates.forEach(function(cand) {
             matrixSide.candidates.push(cand);

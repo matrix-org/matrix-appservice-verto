@@ -274,8 +274,8 @@ function handleEvent(request, context) {
 
             var candidateEvents = prematureCandidatesForCall[event.content.call_id] || [];
             var candidates = [];
-            candidateEvents.forEach(function(event) {
-                event.content.candidates.forEach(function(cand) {
+            candidateEvents.forEach(function(candidateEvent) {
+                candidateEvent.content.candidates.forEach(function(cand) {
                     candidates.push(cand);
                 });
             });

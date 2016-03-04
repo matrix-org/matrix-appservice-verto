@@ -307,7 +307,7 @@ function handleEvent(request, context) {
             prematureCandidatesForCall[event.content.call_id] =
                 prematureCandidatesForCall[event.content.call_id] || [];
             prematureCandidatesForCall[event.content.call_id].push(event);
-            return Promise.reject("Received candidates for unknown call");
+            return Promise.reject("Received and queued candidates for unknown call");
         }
         event.content.candidates.forEach(function(cand) {
             matrixSide.candidates.push(cand);

@@ -35,6 +35,7 @@ function runBridge(port, config) {
     function(msg) { // handle the incoming verto request
         switch (msg.method) {
             case "verto.answer":
+                console.log("Trying to handle verto.answer: " + JSON.stringify(msg));
                 if (!msg.params || !msg.params.sdp || msg.params.callID === undefined) {
                     console.error("Missing SDP and/or CallID");
                     return;

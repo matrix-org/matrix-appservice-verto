@@ -4,6 +4,9 @@ A Matrix &lt;--> Verto bridge, designed for conferencing.
 ## Usage
 
 ### Installing
+
+Set up and run a FreeSWITCH 1.6 or later (ideally 1.7).  Make sure `mod_verto` is installed and works with the verto example app (try to join a conference on 3500)
+
 ```
 $ git clone git@github.com:matrix-org/matrix-appservice-verto.git
 $ cd matrix-appservice-verto

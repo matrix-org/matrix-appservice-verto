@@ -174,7 +174,8 @@ function handleEvent(request, context) {
     if (fsUserId) {
         vertoCall = calls.fsUserToConf[fsUserId];
         if (vertoCall) {
-            matrixSide = vertoCall.getByUserId(event.user_id);
+            matrixSide = vertoCall.getByMatrixCallId(event.content.call_id) ||
+                         vertoCall.getByUserId(event.user_id);
         }
         targetRoomId = getTargetRoomId(fsUserId);
     }

@@ -18,8 +18,10 @@ verto-dialog-params:
   localTag: null
   login: "1008@fs.localhost"
   caller_id_number: "1008"
-  outgoingBandwidth: "default"
-  incomingBandwidth: "default"
+  # these actually take effect and control the bandwidth of the conf!
+  # they are probably capped by the rtp_max_video_bandwidth_* vars.
+  outgoingBandwidth: "1536"
+  incomingBandwidth: "1536"
   dedEnc: false
   mirrorInput: false
   remote_caller_id_name: "Outbound Call"

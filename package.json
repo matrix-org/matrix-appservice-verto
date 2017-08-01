@@ -1,19 +1,19 @@
 {
-  "name": "matrix-appservice-verto",
+  "name": "matrix-appservice-sip",
   "version": "0.1.0",
-  "description": "A Verto <--> Matrix bridge",
-  "main": "verto.js",
+  "description": "A sip <--> Matrix bridge",
+  "main": "app.js",
   "scripts": {
     "lint": "eslint lib/ app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/matrix-org/matrix-appservice-verto.git"
+    "url": "git+https://github.com/matrix-org/matrix-appservice-sip.git"
   },
   "keywords": [
     "matrix-org",
-    "verto",
+    "sip",
     "voip"
   ],
   "author": "Matrix.org",
@@ -22,6 +22,7 @@
     "bluebird": "^2.10.0",
     "ip-address": "^5.8.2",
     "matrix-appservice-bridge": "^0.3.0",
+    "sip.js": "^0.7.7",
     "uuid": "^2.0.1",
     "ws": "^0.8.0"
   },

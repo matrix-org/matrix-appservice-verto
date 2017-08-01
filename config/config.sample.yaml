@@ -2,11 +2,11 @@ homeserver:
   url: http://localhost:8008
   domain: localhost
 
-verto:
+sip:
   url: "ws://fs.localhost:8081/"
   passwd: "somepassword"
-  
-verto-dialog-params:
+
+sip-dialog-params:
   # Keys set by the AS:
   # callID, destination_number, remote_caller_id_number, caller_id_name
   useVideo: true

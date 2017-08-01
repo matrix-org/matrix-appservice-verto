@@ -11,88 +11,88 @@ var Bridge = require("matrix-appservice-bridge").Bridge;
 var MatrixRoom = require("matrix-appservice-bridge").MatrixRoom;
 var MatrixUser = require("matrix-appservice-bridge").MatrixUser;
 
-var VertoEndpoint = require("./lib/endpoint");
+var SipEndpoint = require("./lib/endpoint");
 var CallStore = require("./lib/call-store");
 var ConferenceCall = require("./lib/conf-call");
 
-var REGISTRATION_FILE = "config/verto-registration.yaml";
-var CONFIG_SCHEMA_FILE = "config/verto-config-schema.yaml";
+var REGISTRATION_FILE = "config/sip-registration.yaml";
+var CONFIG_SCHEMA_FILE = "config/sip-config-schema.yaml";
 var ROOM_STORE_FILE = "config/room-store.db";
 var USER_STORE_FILE = "config/user-store.db";
-var USER_PREFIX = "fs_";
+var USER_PREFIX = "conf_";
 var EXTENSION_PREFIX = "35"; // the 'destination_number' to dial: 35xx
 var INVITE_TIMEOUT_MS = 1000 * 30; // ms to wait for an m.call.invite after a group invite
 
-var verto, bridgeInst;
+var sip, bridgeInst;
 var calls = new CallStore(EXTENSION_PREFIX);
 
 // XXX: this should probably be handled by CallStore
 var prematureCandidatesForCall = {};
 
+function answer(calls, bridgeInst, callId, sdp) {
+    var matrixSide = calls.getBySipCallId(callId).matrixSide;
+    if (!matrixSide) {
+        console.error("No call with ID '%s' exists.", callId);
+        return;
+    }
+
+    // find out which user should be sending the answer
+    bridgeInst.getRoomStore().getMatrixRoom(matrixSide.roomId).then(
+    function(room) {
+        if (!room) {
+            throw new Error("Unknown room ID: " + matrixSide.roomId);
+        }
+        var sender = room.get("conf_user");
+        if (!sender) {
+            throw new Error("Room " + matrixSide.roomId + " has no conf_user");
+        }
+        var intent = bridgeInst.getIntent(sender);
+        return intent.sendEvent(matrixSide.roomId, "m.call.answer", {
+            call_id: matrixSide.mxCallId,
+            version: 0,
+            answer: {
+                sdp: sdp,
+                type: "answer"
+            }
+        });
+    }).done(function() {
+        console.log("Forwarded answer.");
+    }, function(err) {
+        console.error("Failed to send m.call.answer: %s", err);
+        console.log(err.stack);
+        // TODO send sip error response?
+    });
+}
+
 function runBridge(port, config) {
-    // Create a verto instance and login, then listen on the bridge.
-    verto = new VertoEndpoint(config.verto.url, config["verto-dialog-params"],
-    function(msg) { // handle the incoming verto request
+    // Create a sip instance and login, then listen on the bridge.
+    sip = new SipEndpoint(config.sip.url, config["sip-dialog-params"],
+    function(msg) { // handle the incoming sip request
         switch (msg.method) {
-            case "verto.answer":
-                console.log("Trying to handle verto.answer: " + JSON.stringify(msg));
+            case "sip.answer":
+                console.log("Trying to handle sip.answer: " + JSON.stringify(msg));
                 if (!msg.params || !msg.params.sdp || msg.params.callID === undefined) {
                     console.error("Missing SDP and/or CallID");
                     return;
                 }
-                var matrixSide = calls.getByVertoCallId(msg.params.callID).matrixSide;
-                if (!matrixSide) {
-                    console.error("No call with ID '%s' exists.", msg.params.callID);
-                    return;
-                }
-
-                // find out which user should be sending the answer
-                bridgeInst.getRoomStore().getMatrixRoom(matrixSide.roomId).then(
-                function(room) {
-                    if (!room) {
-                        throw new Error("Unknown room ID: " + matrixSide.roomId);
-                    }
-                    var sender = room.get("fs_user");
-                    if (!sender) {
-                        throw new Error("Room " + matrixSide.roomId + " has no fs_user");
-                    }
-                    var intent = bridgeInst.getIntent(sender);
-                    return intent.sendEvent(matrixSide.roomId, "m.call.answer", {
-                        call_id: matrixSide.mxCallId,
-                        version: 0,
-                        answer: {
-                            sdp: msg.params.sdp,
-                            type: "answer"
-                        }
-                    });
-                }).then(function() {
-                    return verto.sendResponse({
-                        method: msg.method
-                    }, msg.id);
-                }).done(function() {
-                    console.log("Forwarded answer.");
-                }, function(err) {
-                    console.error("Failed to send m.call.answer: %s", err);
-                    console.log(err.stack);
-                    // TODO send verto error response?
-                });
+                answer(calls, bridgeInst, msg.params.callID, msg.params.sdp);
                 break;
-            case "verto.bye":
+            case "sip.bye":
                 if (!msg.params || !msg.params.callID) {
                     return;
                 }
-                var callInfo = calls.getByVertoCallId(msg.params.callID);
+                var callInfo = calls.getBySipCallId(msg.params.callID);
                 if (!callInfo.matrixSide) {
                     console.error("No call with ID '%s' exists.", msg.params.callID);
                     return;
                 }
-                var intent = bridgeInst.getIntent(callInfo.vertoCall.fsUserId);
+                var intent = bridgeInst.getIntent(callInfo.sipCall.confUserId);
                 intent.sendEvent(callInfo.matrixSide.roomId, "m.call.hangup", {
                     call_id: callInfo.matrixSide.mxCallId,
                     version: 0
                 });
-                calls.delete(callInfo.vertoCall, callInfo.matrixSide);
-                leaveIfNoMembers(callInfo.vertoCall);
+                calls.delete(callInfo.sipCall, callInfo.matrixSide);
+                leaveIfNoMembers(callInfo.sipCall);
                 break;
             default:
                 console.log("Unhandled method: %s", msg.method);
@@ -138,9 +138,9 @@ function runBridge(port, config) {
         }
     });
 
-    verto.login(
-        config["verto-dialog-params"].login,
-        config.verto.passwd
+    sip.login(
+        config["sip-dialog-params"].login,
+        config.sip.passwd
     ).done(function() {
         bridgeInst.run(port, config);
         console.log("Running bridge on port %s", port);
@@ -148,15 +148,15 @@ function runBridge(port, config) {
             console.error("DELAYED: %s", req.getId());
         }, 5000);
     }, function(err) {
-        console.error("Failed to login to verto: %s", JSON.stringify(err));
+        console.error("Failed to login to sip: %s", JSON.stringify(err));
         process.exit(1);
     });
 }
 
-function getExtensionToCall(fsUserId) {
-    var vertoCall = calls.fsUserToConf[fsUserId];
-    if (vertoCall) {
-        return vertoCall.ext; // we have a call for this fs user already
+function getExtensionToCall(confUserId) {
+    var sipCall = calls.confUserToConf[confUserId];
+    if (sipCall) {
+        return sipCall.ext; // we have a call for this conf user already
     }
     var ext = calls.nextExtension();
     if (calls.extToConf[ext]) {
@@ -169,17 +169,17 @@ function getExtensionToCall(fsUserId) {
 
 function handleEvent(request, context) {
     var event = request.getData();
-    var fsUserId = context.rooms.matrix.get("fs_user");
-    var vertoCall, matrixSide, targetRoomId, promise;
-    if (fsUserId) {
-        vertoCall = calls.fsUserToConf[fsUserId];
-        if (vertoCall) {
-            matrixSide = vertoCall.getByMatrixCallId(event.content.call_id) ||
-                         vertoCall.getByUserId(event.user_id);
+    var confUserId = context.rooms.matrix.get("conf_user");
+    var sipCall, matrixSide, targetRoomId, promise;
+    if (confUserId) {
+        sipCall = calls.confUserToConf[confUserId];
+        if (sipCall) {
+            matrixSide = sipCall.getByMatrixCallId(event.content.call_id) ||
+                         sipCall.getByUserId(event.user_id);
         }
-        targetRoomId = getTargetRoomId(fsUserId);
+        targetRoomId = getTargetRoomId(confUserId);
     }
-    // auto-accept invites directed to @fs_ users
+    // auto-accept invites directed to @conf_ users
     if (event.type === "m.room.member") {
         console.log(
             "Member update: room=%s member=%s -> %s",
@@ -190,7 +190,7 @@ function handleEvent(request, context) {
             targetRoomId = getTargetRoomId(context.targets.matrix.getId());
             if (!isValidRoomId(targetRoomId)) {
                 console.log(
-                    "Bad fs_user_id: %s decoded to room %s",
+                    "Bad conf_user_id: %s decoded to room %s",
                     context.targets.matrix.getId(), targetRoomId
                 );
                 return Promise.reject("Malformed user ID invited");
@@ -201,7 +201,7 @@ function handleEvent(request, context) {
             }).then(function() {
                 // pair this user with this room ID
                 var room = new MatrixRoom(event.room_id);
-                room.set("fs_user", context.targets.matrix.getId());
+                room.set("conf_user", context.targets.matrix.getId());
                 room.set("inviter", event.user_id);
                 startTimeoutForInvite(context.targets.matrix.getId());
                 return bridgeInst.getRoomStore().setMatrixRoom(room);
@@ -209,10 +209,10 @@ function handleEvent(request, context) {
         }
         else if (event.content.membership === "leave" ||
                 event.content.membership === "ban") {
-            if (!vertoCall) {
+            if (!sipCall) {
                 return Promise.resolve("User not in a call");
             }
-            if (context.targets.matrix.getId() === fsUserId &&
+            if (context.targets.matrix.getId() === confUserId &&
                     targetRoomId === event.room_id) {
                 // cheeky users have kicked the conf user from the
                 // target room - boot everyone off the conference
@@ -220,22 +220,22 @@ function handleEvent(request, context) {
                     "Conference user is no longer in the target " +
                     "room. Killing conference."
                 );
-                vertoCall.getAllMatrixSides().forEach(function(side) {
-                    verto.sendBye(vertoCall, side);
-                    calls.delete(vertoCall, side);
+                sipCall.getAllMatrixSides().forEach(function(side) {
+                    sipCall.sendBye(side);
+                    calls.delete(sipCall, side);
                 });
                 return Promise.resolve("Killed conference");
             }
-            matrixSide = vertoCall.getByUserId(
+            matrixSide = sipCall.getByUserId(
                 context.targets.matrix.getId()
             );
             // hangup if this user is in a call.
             if (!matrixSide) {
                 return Promise.reject("User not in a call - no hangup needed");
             }
-            promise = verto.sendBye(vertoCall, matrixSide);
-            calls.delete(vertoCall, matrixSide);
-            leaveIfNoMembers(vertoCall);
+            promise = sipCall.sendBye(matrixSide);
+            calls.delete(sipCall, matrixSide);
+            leaveIfNoMembers(sipCall);
             return promise;
         }
     }
@@ -246,14 +246,14 @@ function handleEvent(request, context) {
         );
         // only accept call invites for rooms which we are joined to
         if (!targetRoomId) {
-            return Promise.reject("No valid fs room for this invite");
+            return Promise.reject("No valid conf room for this invite");
         }
         if (targetRoomId === event.room_id) {
             // someone sent a call invite to the group chat(!) ignore it.
             return Promise.reject("Bad call invite to group chat room");
         }
         // make sure this user is in the target room.
-        return bridgeInst.getIntent(fsUserId).roomState(targetRoomId).then(
+        return bridgeInst.getIntent(confUserId).roomState(targetRoomId).then(
         function(state) {
             var userInRoom = false;
             for (var i = 0; i < state.length; i++) {
@@ -268,9 +268,9 @@ function handleEvent(request, context) {
                 throw new Error("User isn't joined to group chat room");
             }
 
-            if (!vertoCall) {
-                vertoCall = new ConferenceCall(
-                    fsUserId, getExtensionToCall(fsUserId)
+            if (!sipCall) {
+                sipCall = new ConferenceCall(
+                    confUserId, getExtensionToCall(confUserId)
                 );
             }
 
@@ -283,21 +283,25 @@ function handleEvent(request, context) {
             });
             delete prematureCandidatesForCall[event.content.call_id];
 
+            var sipCallId = uuid.v4();
             var callData = {
                 roomId: event.room_id,
                 mxUserId: event.user_id,
                 mxCallId: event.content.call_id,
-                vertoCallId: uuid.v4(),
+                sipCallId: sipCallId,
                 offer: event.content.offer.sdp,
                 candidates: candidates,
                 pin: generatePin(),
                 timer: null,
-                sentInvite: false
+                sentInvite: false,
+                sdpCallback: function (sdp) {
+                    answer(calls, bridgeInst, sipCallId, sdp);
+                }
             };
 
-            vertoCall.addMatrixSide(callData);
-            calls.set(vertoCall);
-            return verto.attemptInvite(vertoCall, callData, false);
+            sipCall.addMatrixSide(callData);
+            calls.set(sipCall);
+            return sip.attemptInvite(sipCall, callData, false);
         });
     }
     else if (event.type === "m.call.candidates") {
@@ -314,7 +318,7 @@ function handleEvent(request, context) {
         event.content.candidates.forEach(function(cand) {
             matrixSide.candidates.push(cand);
         });
-        return verto.attemptInvite(vertoCall, matrixSide, false);
+        return sip.attemptInvite(sipCall, matrixSide, false);
     }
     else if (event.type === "m.call.hangup") {
         console.log(
@@ -324,31 +328,31 @@ function handleEvent(request, context) {
         if (!matrixSide) {
             return Promise.reject("Received hangup for unknown call");
         }
-        promise = verto.sendBye(vertoCall, matrixSide);
-        calls.delete(vertoCall, matrixSide);
-        leaveIfNoMembers(vertoCall);
+        promise = sipCall.sendBye(matrixSide);
+        calls.delete(sipCall, matrixSide);
+        leaveIfNoMembers(sipCall);
         return promise;
     }
 }
 
-function startTimeoutForInvite(fsUserId) {
+function startTimeoutForInvite(confUserId) {
     setTimeout(function() {
-        var vertoCall = calls.fsUserToConf[fsUserId];
-        if (!vertoCall || vertoCall.getNumMatrixUsers() === 0) {
-            var intent = bridgeInst.getIntent(fsUserId);
-            intent.leave(getTargetRoomId(fsUserId)).catch(function(err) {
+        var sipCall = calls.confUserToConf[confUserId];
+        if (!sipCall || sipCall.getNumMatrixUsers() === 0) {
+            var intent = bridgeInst.getIntent(confUserId);
+            intent.leave(getTargetRoomId(confUserId)).catch(function(err) {
                 console.error("Failed to leave room: %s", err);
             });
         }
     }, INVITE_TIMEOUT_MS);
 }
 
-function leaveIfNoMembers(vertoCall) {
-    if (vertoCall.getNumMatrixUsers() !== 0) {
+function leaveIfNoMembers(sipCall) {
+    if (sipCall.getNumMatrixUsers() !== 0) {
         return;
     }
-    var intent = bridgeInst.getIntent(vertoCall.fsUserId);
-    intent.leave(getTargetRoomId(vertoCall.fsUserId)).catch(function(err) {
+    var intent = bridgeInst.getIntent(sipCall.confUserId);
+    intent.leave(getTargetRoomId(sipCall.confUserId)).catch(function(err) {
         console.error("Failed to leave room: %s", err);
     });
 }
@@ -361,12 +365,12 @@ function isValidRoomId(roomId) {
     return /^!.+:.+/.test(roomId);  // starts with !, has stuff, :, has more stuff
 }
 
-function getTargetRoomId(fsUserId) {
-    // The fs user ID contains the base64d room ID which is
+function getTargetRoomId(confUserId) {
+    // The conf user ID contains the base64d room ID which is
     // the room whose members are trying to place a conference call e.g.
     // !foo:bar => IWZvbzpiYXI=
-    // @fs_IWZvbzpiYXI=:localhost => Conf call in room !foo:bar
-    var lpart = new MatrixUser(fsUserId).localpart;
+    // @conf_IWZvbzpiYXI=:localhost => Conf call in room !foo:bar
+    var lpart = new MatrixUser(confUserId).localpart;
     var base64roomId = lpart.replace(USER_PREFIX, "");
     return base64decode(base64roomId);
 }
@@ -391,7 +395,7 @@ var c = new Cli({
         reg.setId(AppServiceRegistration.generateToken());
         reg.setHomeserverToken(AppServiceRegistration.generateToken());
         reg.setAppServiceToken(AppServiceRegistration.generateToken());
-        reg.setSenderLocalpart("vertobot");
+        reg.setSenderLocalpart("sipbot");
         reg.addRegexPattern("users", "@" + USER_PREFIX + ".*", true);
         console.log(
             "Generating registration to '%s' for the AS accessible from: %s",

@@ -3,7 +3,7 @@ logs
 *.log
 *.db
 config/config.yaml
-config/verto-registration.yaml
+config/sip-registration.yaml
 
 # Runtime data
 pids

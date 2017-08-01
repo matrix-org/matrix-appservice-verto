@@ -10,16 +10,18 @@ properties:
         type: string
     additionalProperties: false
     required: ["url", "domain"]
-  verto:
+  sip:
     type: object
     properties:
       url:
         type: string
+      authUser:
+        type: string
       passwd:
         type: string
     additionalProperties: false
-    required: ["url", "passwd"]
-  verto-dialog-params:
+    required: ["url", "authUser", "passwd"]
+  sip-dialog-params:
     type: object
     properties:
       useVideo:
